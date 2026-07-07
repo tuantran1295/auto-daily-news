@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.vietnam.weather.news</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/remakit12/Desktop/Daily news app/.venv/bin/python3</string>
+        <string>/Users/remakit12/Desktop/Daily news app/main.py</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>WorkingDirectory</key>
+    <string>/Users/remakit12/Desktop/Daily news app</string>
+    <key>StandardOutPath</key>
+    <string>/Users/remakit12/Desktop/Daily news app/out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/remakit12/Desktop/Daily news app/err.log</string>
+</dict>
+</plist>
