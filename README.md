@@ -1,6 +1,6 @@
 # Bản tin Đa chuyên mục Tự động (macOS Auto Daily News)
 
-Ứng dụng macOS tự khởi động cùng hệ thống, tự động cập nhật thông tin thời tiết 3 miền, quét tin tức bão/thiên tai khẩn cấp, tin tức công nghệ, trí tuệ nhân tạo (AI), và tin tức giới trẻ tại Việt Nam. Ứng dụng sẽ gửi thông báo hệ thống và mở Dashboard HTML Premium trên trình duyệt mặc định vào lúc **8:00 sáng hàng ngày**.
+Ứng dụng macOS tự khởi động cùng hệ thống, tự động cập nhật thông tin thời tiết 3 miền, quét tin tức bão/thiên tai khẩn cấp, tin tức công nghệ, trí tuệ nhân tạo (AI), FIFA World Cup 2026 và tin tức giới trẻ tại Việt Nam. Ứng dụng sẽ gửi thông báo hệ thống và mở Dashboard HTML Premium trên trình duyệt mặc định vào lúc **8:00 sáng hàng ngày**.
 
 ---
 
@@ -8,7 +8,8 @@
 
 * **Khởi động cùng macOS**: Tự động đăng ký với LaunchAgent để tự động khởi chạy lúc 8:00 sáng hàng ngày và tự động chạy bù ngay sau khi máy Mac được bật/đánh thức nếu thời điểm đó đã qua 8h.
 * **Thời tiết 3 miền**: Cập nhật thời tiết Hà Nội, Đà Nẵng, TP.HCM qua Open-Meteo API với cơ chế tự động thử lại (Retry) tránh lỗi 503 và tạo khoảng trễ an toàn giữa các request.
-* **🚨 Cảnh báo bão & thiên tai khẩn cấp**: Cào tin cảnh báo bão, lũ lụt, mưa lớn từ Trung tâm Dự báo Khí tượng Thủy văn Quốc gia (NCHMF) và RSS VnExpress/Tuổi Trẻ để hiển thị cảnh báo đỏ nổi bật.
+* **🚨 Cảnh báo bão & thiên tai khẩn cấp**: Cào tin cảnh báo bão, lũ lụt, mưa lớn từ NCHMF và RSS VnExpress/Tuổi Trẻ để hiển thị cảnh báo đỏ nổi bật.
+* **🏆 FIFA World Cup 2026**: Tự động cào và lọc tin tức liên quan đến World Cup 2026 từ các nguồn thể thao uy tín để đưa lên đầu Cột 3 với thiết kế Vàng Gold nổi bật.
 * **🧠 Chuyên mục AI nổi bật**: Lọc tự động các tin tức liên quan đến Trí tuệ nhân tạo (AI, ChatGPT, Gemini, OpenAI, Nvidia...) vào khu vực riêng với tone màu tím neon đặc trưng.
 * **💻 Thế giới Công nghệ**: Các tin công nghệ tiêu dùng, khoa học, đời sống số từ GenK và VnExpress Số hóa.
 * **✨ Nhịp sống Giới trẻ**: Tin tức xu hướng, đời sống giới trẻ Việt Nam từ báo Thanh Niên.

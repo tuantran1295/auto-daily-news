@@ -205,7 +205,7 @@ def scrape_nchmf_warnings():
 
 def process_news_and_warnings():
     """
-    Tổng hợp và lọc tin tức theo các chuyên mục: Bão/Thiên tai, Thời tiết thông thường, Công nghệ, AI và Giới trẻ.
+    Tổng hợp và lọc tin tức theo các chuyên mục: Bão/Thiên tai, Thời tiết thông thường, Công nghệ, AI, Giới trẻ và World Cup.
     """
     weather_feeds = [
         ("https://vnexpress.net/rss/thoi-su.rss", "VnExpress Thời sự"),
@@ -217,6 +217,10 @@ def process_news_and_warnings():
     ]
     youth_feeds = [
         ("https://thanhnien.vn/rss/gioi-tre.rss", "Thanh Niên Giới trẻ")
+    ]
+    sports_feeds = [
+        ("https://vnexpress.net/rss/the-thao.rss", "VnExpress Thể thao"),
+        ("https://tuoitre.vn/rss/the-thao.rss", "Tuổi Trẻ Thể thao")
     ]
     
     # 1. Cào dữ liệu từ các nhóm RSS
@@ -236,6 +240,10 @@ def process_news_and_warnings():
     for url, source in youth_feeds:
         youth_items.extend(parse_rss_feed(url, source))
         
+    sports_items = []
+    for url, source in sports_feeds:
+        sports_items.extend(parse_rss_feed(url, source))
+        
     # Từ khóa lọc bão & thiên tai
     priority_keywords = ["bão", "áp thấp", "lũ quét", "sạt lở", "triều cường", "mưa lớn", "ngập lụt", "lốc xoáy", "thiên tai", "lũ lụt"]
     weather_keywords = ["thời tiết", "nắng nóng", "mưa giông", "gió giật", "không khí lạnh", "dự báo", "triều cường"]
@@ -247,11 +255,19 @@ def process_news_and_warnings():
         "trí tuệ nhân tạo", "robot thông minh"
     ]
     
+    # Từ khóa lọc tin World Cup 2026
+    wc_keywords = [
+        "world cup", "worldcup", "wc 2026", "wc2026", "fifa", "bóng đá", 
+        "bán kết", "chung kết", "trận đấu", "tuyển quốc gia", "đội tuyển", 
+        "cầu thủ", "cup thế giới", "lịch thi đấu", "vô địch"
+    ]
+    
     priority_news = []
     normal_weather_news = []
     tech_news = []
     ai_news = []
     youth_news = []
+    wc_news = []
     
     seen_titles = set()
     
@@ -284,11 +300,8 @@ def process_news_and_warnings():
             continue
         seen_titles.add(clean_title)
         
-        # Lọc tin AI (ưu tiên tìm từ khóa chính xác "ai" bằng regex để tránh bị dính các chữ cái trong từ tiếng Việt như "tai", "cai")
-        # Ví dụ tìm từ "AI" riêng lẻ, hoặc các từ khóa AI khác
         is_ai = any(kw in title_lower or kw in desc_lower for kw in ai_keywords if kw != "ai")
         if not is_ai:
-            # Dùng regex để tìm từ "ai" đứng độc lập (ví dụ "AI tạo ra", "phần mềm AI", không khớp với "tai nạn", "cái gì")
             is_ai = bool(re.search(r'\b(ai)\b', title_lower)) or bool(re.search(r'\b(ai)\b', desc_lower))
             
         if is_ai:
@@ -308,9 +321,23 @@ def process_news_and_warnings():
         
         youth_news.append(item)
         
-    return priority_news, normal_weather_news, tech_news, ai_news, youth_news
+    # Phân loại nhóm World Cup
+    for item in sports_items:
+        title_lower = item["title"].lower()
+        desc_lower = item["description"].lower() if item["description"] else ""
+        
+        clean_title = re.sub(r'[^\w\s]', '', title_lower).strip()
+        if clean_title in seen_titles:
+            continue
+        seen_titles.add(clean_title)
+        
+        is_wc = any(kw in title_lower or kw in desc_lower for kw in wc_keywords)
+        if is_wc:
+            wc_news.append(item)
+        
+    return priority_news, normal_weather_news, tech_news, ai_news, youth_news, wc_news
 
-def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_news, youth_news):
+def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_news, youth_news, wc_news):
     """
     Tạo báo cáo HTML dạng Dashboard 3 cột đẹp mắt dựa trên dữ liệu thời tiết và tin tức đã thu thập
     """
@@ -459,7 +486,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
     # --- 6. Tạo HTML cho cột Giới trẻ ---
     youth_news_html = ""
     if youth_news:
-        for item in youth_news[:6]: # Tối đa 6 tin giới trẻ
+        for item in youth_news[:4]: # Giới hạn 4 tin giới trẻ để nhường chỗ cho World Cup
             img_html = f'<img src="{item["image"]}" alt="tin-anh" class="news-img-small">' if item.get("image") else ''
             youth_news_html += f"""
             <div class="news-card youth-card">
@@ -474,6 +501,25 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
             """
     else:
         youth_news_html = "<p class='no-news'>Không có tin tức giới trẻ mới.</p>"
+
+    # --- 7. Tạo HTML cho cột World Cup ---
+    wc_news_html = ""
+    if wc_news:
+        for item in wc_news[:5]: # Tối đa 5 tin World Cup
+            img_html = f'<img src="{item["image"]}" alt="tin-anh" class="news-img-small">' if item.get("image") else ''
+            wc_news_html += f"""
+            <div class="news-card wc-card">
+                {img_html}
+                <div class="news-card-body">
+                    <span class="badge badge-wc">{item['source']} - World Cup 2026</span>
+                    <h4 class="news-card-title"><a href="{item['link']}" target="_blank">{item['title']}</a></h4>
+                    <p class="news-card-desc">{item['description']}</p>
+                    <span class="news-date">📅 {item['pub_date']}</span>
+                </div>
+            </div>
+            """
+    else:
+        wc_news_html = "<p class='no-news'>Hiện chưa cập nhật tin tức World Cup mới.</p>"
 
     # Toàn bộ Template HTML/CSS phong cách Premium Dashboard 3 cột
     html_content = f"""<!DOCTYPE html>
@@ -505,6 +551,9 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
             --tech-glow: rgba(6, 182, 212, 0.12);
             --youth-pink: #ec4899;
             --youth-glow: rgba(236, 72, 153, 0.12);
+            
+            --wc-gold: #eab308;
+            --wc-glow: rgba(234, 179, 8, 0.12);
         }}
 
         * {{
@@ -628,6 +677,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
         .col-weather-title {{ color: #a5f3fc; border-color: rgba(6, 182, 212, 0.15); }}
         .col-tech-title {{ color: #c7d2fe; border-color: rgba(139, 92, 246, 0.15); }}
         .col-youth-title {{ color: #fbcfe8; border-color: rgba(236, 72, 153, 0.15); }}
+        .col-wc-title {{ color: #fef08a; border-color: rgba(234, 179, 8, 0.15); }}
 
         /* Section Container Box */
         .section-box {{
@@ -864,6 +914,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
         .badge-ai {{ background: rgba(139, 92, 246, 0.15); color: #ddd6fe; border: 1px solid rgba(139, 92, 246, 0.25); }}
         .badge-tech {{ background: rgba(59, 130, 246, 0.12); color: #bfdbfe; border: 1px solid rgba(59, 130, 246, 0.2); }}
         .badge-youth {{ background: rgba(236, 72, 153, 0.12); color: #fbcfe8; border: 1px solid rgba(236, 72, 153, 0.2); }}
+        .badge-wc {{ background: rgba(234, 179, 8, 0.15); color: #fef08a; border: 1px solid rgba(234, 179, 8, 0.25); }}
 
         .news-title a {{
             color: #ffffff;
@@ -959,6 +1010,11 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
             background: linear-gradient(90deg, var(--youth-glow) 0%, rgba(30, 41, 59, 0.2) 100%);
         }}
 
+        .wc-card {{
+            border-left: 3px solid var(--wc-gold);
+            background: linear-gradient(90deg, var(--wc-glow) 0%, rgba(30, 41, 59, 0.2) 100%);
+        }}
+
         .news-img-small {{
             width: 110px;
             height: 90px;
@@ -991,6 +1047,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
         .ai-card .news-card-title a:hover {{ color: var(--ai-purple); }}
         .tech-card .news-card-title a:hover {{ color: var(--tech-cyan); }}
         .youth-card .news-card-title a:hover {{ color: var(--youth-pink); }}
+        .wc-card .news-card-title a:hover {{ color: var(--wc-gold); }}
 
         .news-card-desc {{
             color: var(--text-muted);
@@ -1075,8 +1132,17 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
                 </div>
             </div>
 
-            <!-- CỘT 3: NHỊP SỐNG GIỚI TRẺ -->
+            <!-- CỘT 3: WORLD CUP & GIỚI TRẺ -->
             <div class="dashboard-col col-right">
+                <!-- Chuyên mục World Cup -->
+                <div>
+                    <div class="col-title-bar col-wc-title">🏆 FIFA World Cup 2026</div>
+                    <div class="news-card-grid">
+                        {wc_news_html}
+                    </div>
+                </div>
+
+                <!-- Nhịp sống Giới trẻ -->
                 <div>
                     <div class="col-title-bar col-youth-title">✨ Nhịp sống Giới trẻ</div>
                     <div class="news-card-grid">
@@ -1164,10 +1230,10 @@ def main():
         weather_results[city] = get_weather_info(city, coords["lat"], coords["lon"])
         
     # 2. Thu thập và lọc tin tức theo các nhóm chuyên mục
-    priority_news, weather_news, tech_news, ai_news, youth_news = process_news_and_warnings()
+    priority_news, weather_news, tech_news, ai_news, youth_news, wc_news = process_news_and_warnings()
     
     # 3. Tạo bản tin HTML Dashboard 3 cột
-    build_html_report(weather_results, priority_news, weather_news, tech_news, ai_news, youth_news)
+    build_html_report(weather_results, priority_news, weather_news, tech_news, ai_news, youth_news, wc_news)
     
     # 4. Gửi notification macOS
     has_warnings = len(priority_news) > 0
