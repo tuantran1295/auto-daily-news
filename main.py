@@ -5,13 +5,18 @@ import os
 import sys
 import json
 import datetime
-import urllib.request
-import urllib.parse
 import re
 import subprocess
+import time
+import requests
 from bs4 import BeautifulSoup
 
-import time
+# Header HTTP giả lập trình duyệt Chrome hiện đại
+HTTP_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7'
+}
 
 # Đường dẫn thư mục làm việc và file output
 WORKSPACE_DIR = "/Users/remakit12/Desktop/Daily news app"
@@ -65,27 +70,27 @@ def get_weather_info(city_name, lat, lon):
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'})
-            with urllib.request.urlopen(req, timeout=10) as response:
-                data = json.loads(response.read().decode('utf-8'))
-                current = data.get("current", {})
-                
-                code = current.get("weather_code", 0)
-                desc, emoji, weather_class = WEATHER_CODES.get(code, ("Thời tiết không xác định", "🌡️", "unknown"))
-                
-                return {
-                    "success": True,
-                    "city": city_name,
-                    "temp": current.get("temperature_2m", 0.0),
-                    "feel_temp": current.get("apparent_temperature", 0.0),
-                    "humidity": current.get("relative_humidity_2m", 0),
-                    "precipitation": current.get("precipitation", 0.0),
-                    "wind_speed": current.get("wind_speed_10m", 0.0),
-                    "weather_code": code,
-                    "description": desc,
-                    "emoji": emoji,
-                    "class": weather_class
-                }
+            response = requests.get(url, headers=HTTP_HEADERS, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            current = data.get("current", {})
+            
+            code = current.get("weather_code", 0)
+            desc, emoji, weather_class = WEATHER_CODES.get(code, ("Thời tiết không xác định", "🌡️", "unknown"))
+            
+            return {
+                "success": True,
+                "city": city_name,
+                "temp": current.get("temperature_2m", 0.0),
+                "feel_temp": current.get("apparent_temperature", 0.0),
+                "humidity": current.get("relative_humidity_2m", 0),
+                "precipitation": current.get("precipitation", 0.0),
+                "wind_speed": current.get("wind_speed_10m", 0.0),
+                "weather_code": code,
+                "description": desc,
+                "emoji": emoji,
+                "class": weather_class
+            }
         except Exception as e:
             print(f"Lỗi khi lấy thời tiết cho {city_name} (Lần thử {attempt + 1}/{max_retries}): {e}", file=sys.stderr)
             if attempt < max_retries - 1:
@@ -110,35 +115,33 @@ def parse_rss_feed(url, source_name):
     """
     items = []
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'})
-        with urllib.request.urlopen(req, timeout=10) as response:
-            xml_data = response.read()
-            soup = BeautifulSoup(xml_data, 'xml')
+        response = requests.get(url, headers=HTTP_HEADERS, timeout=10)
+        response.raise_for_status()
+        xml_data = response.content
+        soup = BeautifulSoup(xml_data, 'xml')
+        
+        for item in soup.find_all('item'):
+            title = item.find('title').text if item.find('title') else ""
+            link = item.find('link').text if item.find('link') else ""
+            desc_raw = item.find('description').text if item.find('description') else ""
+            pub_date = item.find('pubDate').text if item.find('pubDate') else ""
             
-            for item in soup.find_all('item'):
-                title = item.find('title').text if item.find('title') else ""
-                link = item.find('link').text if item.find('link') else ""
-                desc_raw = item.find('description').text if item.find('description') else ""
-                pub_date = item.find('pubDate').text if item.find('pubDate') else ""
-                
-                # Làm sạch mô tả từ RSS (VnExpress thường bọc mô tả trong CDATA chứa ảnh)
-                desc = desc_raw
-                img_url = ""
-                # Tìm ảnh trong mô tả nếu có dạng <img src="..." />
-                img_match = re.search(r'src="([^"]+)"', desc_raw)
-                if img_match:
-                    img_url = img_match.group(1)
-                
-                desc = clean_html_tags(desc_raw)
-                
-                items.append({
-                    "title": title.strip(),
-                    "link": link.strip(),
-                    "description": desc,
-                    "image": img_url,
-                    "pub_date": pub_date.strip(),
-                    "source": source_name
-                })
+            desc = desc_raw
+            img_url = ""
+            img_match = re.search(r'src="([^"]+)"', desc_raw)
+            if img_match:
+                img_url = img_match.group(1)
+            
+            desc = clean_html_tags(desc_raw)
+            
+            items.append({
+                "title": title.strip(),
+                "link": link.strip(),
+                "description": desc,
+                "image": img_url,
+                "pub_date": pub_date.strip(),
+                "source": source_name
+            })
     except Exception as e:
         print(f"Lỗi khi parse RSS từ {source_name} ({url}): {e}", file=sys.stderr)
     return items
@@ -150,26 +153,24 @@ def scrape_nchmf_warnings():
     warnings = []
     url = "https://nchmf.gov.vn/"
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'})
-        with urllib.request.urlopen(req, timeout=15) as response:
-            html = response.read()
-            soup = BeautifulSoup(html, 'html.parser')
+        response = requests.get(url, headers=HTTP_HEADERS, timeout=15)
+        response.raise_for_status()
+        html = response.content
+        soup = BeautifulSoup(html, 'html.parser')
             
-            # Cấu trúc của NCHMF thường chứa danh sách tin trong các div class "news-item" hoặc "info-item" hoặc thẻ a trong danh sách
-            # Hãy quét các thẻ <a> chứa liên kết có cụm từ dự báo thời tiết hoặc cảnh báo
-            articles = soup.find_all('div', class_='news-item') or soup.find_all('div', class_='row')
+        articles = soup.find_all('div', class_='news-item') or soup.find_all('div', class_='row')
+        
+        for article in articles:
+            link_tag = article.find('a')
+            if not link_tag or not link_tag.get('href'):
+                continue
             
-            for article in articles:
-                link_tag = article.find('a')
-                if not link_tag or not link_tag.get('href'):
-                    continue
-                
-                title_tag = article.find('h4') or article.find('a', class_='title') or link_tag
-                title = title_tag.text.strip()
-                
-                href = link_tag.get('href')
-                if not href.startswith('http'):
-                    href = "https://nchmf.gov.vn" + href
+            title_tag = article.find('h4') or article.find('a', class_='title') or link_tag
+            title = title_tag.text.strip()
+            
+            href = link_tag.get('href')
+            if not href.startswith('http'):
+                href = "https://nchmf.gov.vn" + href
                 
                 desc_tag = article.find('p', class_='summary') or article.find('p')
                 desc = desc_tag.text.strip() if desc_tag else ""
@@ -206,13 +207,14 @@ def scrape_nchmf_warnings():
 def process_news_and_warnings():
     """
     Tổng hợp và lọc tin tức theo các chuyên mục: Bão/Thiên tai, Thời tiết thông thường, Công nghệ, AI, Giới trẻ và World Cup.
+    Đặc biệt: Ưu tiên lọc tin bài chủ đề AI từ TẤT CẢ các nguồn báo chí (Global AI Filter).
     """
     weather_feeds = [
         ("https://vnexpress.net/rss/thoi-su.rss", "VnExpress Thời sự"),
         ("https://tuoitre.vn/rss/thoi-su.rss", "Tuổi Trẻ Thời sự")
     ]
     tech_feeds = [
-        ("https://genk.vn/rss.chn", "GenK Công nghệ"),
+        ("https://genk.vn/rss.chn", "GenK Trang chủ"),
         ("https://vnexpress.net/rss/so-hoa.rss", "VnExpress Số hóa")
     ]
     youth_feeds = [
@@ -223,7 +225,7 @@ def process_news_and_warnings():
         ("https://tuoitre.vn/rss/the-thao.rss", "Tuổi Trẻ Thể thao")
     ]
     
-    # 1. Cào dữ liệu từ các nhóm RSS
+    # 1. Cào dữ liệu từ tất cả các nhóm RSS
     weather_items = []
     for url, source in weather_feeds:
         weather_items.extend(parse_rss_feed(url, source))
@@ -248,11 +250,12 @@ def process_news_and_warnings():
     priority_keywords = ["bão", "áp thấp", "lũ quét", "sạt lở", "triều cường", "mưa lớn", "ngập lụt", "lốc xoáy", "thiên tai", "lũ lụt"]
     weather_keywords = ["thời tiết", "nắng nóng", "mưa giông", "gió giật", "không khí lạnh", "dự báo", "triều cường"]
     
-    # Từ khóa lọc tin AI
+    # Từ khóa lọc tin AI mở rộng
     ai_keywords = [
         "ai", "trí tuệ nhân tạo", "chatgpt", "gemini", "copilot", "openai", "nvidia", 
         "llm", "học máy", "machine learning", "deep learning", "claude", "midjourney", 
-        "trí tuệ nhân tạo", "robot thông minh"
+        "sora", "grok", "deepseek", "generative ai", "ai tạo sinh", "robot ai", 
+        "mô hình ngôn ngữ", "tự động hóa ai", "sam altman", "jensen huang", "agentic ai"
     ]
     
     # Từ khóa lọc tin World Cup 2026
@@ -271,69 +274,58 @@ def process_news_and_warnings():
     
     seen_titles = set()
     
-    # Phân loại nhóm Thời tiết & Bão
-    for item in weather_items:
+    # --- BƯỚC QUAN TRỌNG: THUẬT TOÁN ĐỌC & QUÉT AI TOÀN CỤC (GLOBAL AI FILTER) ---
+    # Quét trước tất cả tin từ mọi nguồn (GenK, VnExpress, Tuổi Trẻ, Thanh Niên...) để ưu tiên bài về AI
+    all_raw_items = [("weather", item) for item in weather_items] + \
+                    [("tech", item) for item in tech_items] + \
+                    [("youth", item) for item in youth_items] + \
+                    [("sports", item) for item in sports_items]
+                    
+    non_ai_items = []
+    for category, item in all_raw_items:
         title_lower = item["title"].lower()
         desc_lower = item["description"].lower() if item["description"] else ""
         
-        # Tránh trùng lặp tin tức theo tiêu đề tương tự
         clean_title = re.sub(r'[^\w\s]', '', title_lower).strip()
         if clean_title in seen_titles:
             continue
-        seen_titles.add(clean_title)
-        
-        is_priority = any(kw in title_lower or kw in desc_lower for kw in priority_keywords)
-        is_weather = any(kw in title_lower or kw in desc_lower for kw in weather_keywords)
-        
-        if is_priority:
-            priority_news.append(item)
-        elif is_weather:
-            normal_weather_news.append(item)
             
-    # Phân loại nhóm Công nghệ & lọc tin AI
-    for item in tech_items:
-        title_lower = item["title"].lower()
-        desc_lower = item["description"].lower() if item["description"] else ""
-        
-        clean_title = re.sub(r'[^\w\s]', '', title_lower).strip()
-        if clean_title in seen_titles:
-            continue
-        seen_titles.add(clean_title)
-        
+        # Kiểm tra xem bài viết từ BẤT KỲ NGUỒN NÀO có phải về AI không
         is_ai = any(kw in title_lower or kw in desc_lower for kw in ai_keywords if kw != "ai")
         if not is_ai:
             is_ai = bool(re.search(r'\b(ai)\b', title_lower)) or bool(re.search(r'\b(ai)\b', desc_lower))
             
         if is_ai:
+            seen_titles.add(clean_title)
             ai_news.append(item)
         else:
+            non_ai_items.append((category, item))
+
+    # --- BƯỚC KẾ TIẾP: Phân loại các tin còn lại không thuộc AI ---
+    for category, item in non_ai_items:
+        title_lower = item["title"].lower()
+        desc_lower = item["description"].lower() if item["description"] else ""
+        
+        clean_title = re.sub(r'[^\w\s]', '', title_lower).strip()
+        if clean_title in seen_titles:
+            continue
+        seen_titles.add(clean_title)
+        
+        if category == "weather":
+            is_priority = any(kw in title_lower or kw in desc_lower for kw in priority_keywords)
+            is_weather = any(kw in title_lower or kw in desc_lower for kw in weather_keywords)
+            if is_priority:
+                priority_news.append(item)
+            elif is_weather:
+                normal_weather_news.append(item)
+        elif category == "tech":
             tech_news.append(item)
-            
-    # Phân loại nhóm Giới trẻ
-    for item in youth_items:
-        title_lower = item["title"].lower()
-        desc_lower = item["description"].lower() if item["description"] else ""
-        
-        clean_title = re.sub(r'[^\w\s]', '', title_lower).strip()
-        if clean_title in seen_titles:
-            continue
-        seen_titles.add(clean_title)
-        
-        youth_news.append(item)
-        
-    # Phân loại nhóm World Cup
-    for item in sports_items:
-        title_lower = item["title"].lower()
-        desc_lower = item["description"].lower() if item["description"] else ""
-        
-        clean_title = re.sub(r'[^\w\s]', '', title_lower).strip()
-        if clean_title in seen_titles:
-            continue
-        seen_titles.add(clean_title)
-        
-        is_wc = any(kw in title_lower or kw in desc_lower for kw in wc_keywords)
-        if is_wc:
-            wc_news.append(item)
+        elif category == "youth":
+            youth_news.append(item)
+        elif category == "sports":
+            is_wc = any(kw in title_lower or kw in desc_lower for kw in wc_keywords)
+            if is_wc:
+                wc_news.append(item)
         
     return priority_news, normal_weather_news, tech_news, ai_news, youth_news, wc_news
 
@@ -448,7 +440,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
     # --- 4. Tạo HTML cho cột AI (Trí tuệ nhân tạo) ---
     ai_news_html = ""
     if ai_news:
-        for item in ai_news[:5]: # Tối đa 5 tin AI nổi bật
+        for item in ai_news[:8]: # Tối đa 8 tin AI nổi bật
             img_html = f'<img src="{item["image"]}" alt="tin-anh" class="news-img-small">' if item.get("image") else ''
             ai_news_html += f"""
             <div class="news-card ai-card">
