@@ -206,7 +206,7 @@ def scrape_nchmf_warnings():
 
 def process_news_and_warnings():
     """
-    Tổng hợp và lọc tin tức theo các chuyên mục: Bão/Thiên tai, Thời tiết thông thường, Công nghệ, AI, Giới trẻ và World Cup.
+    Tổng hợp và lọc tin tức theo các chuyên mục: Bão/Thiên tai, Thời tiết thông thường, Công nghệ (GenK), AI, Giới trẻ, World Cup và GameK (Game/Esports).
     Đặc biệt: Ưu tiên lọc tin bài chủ đề AI từ TẤT CẢ các nguồn báo chí (Global AI Filter).
     """
     weather_feeds = [
@@ -214,7 +214,8 @@ def process_news_and_warnings():
         ("https://tuoitre.vn/rss/thoi-su.rss", "Tuổi Trẻ Thời sự")
     ]
     tech_feeds = [
-        ("https://genk.vn/rss.chn", "GenK Trang chủ"),
+        ("https://genk.vn/rss/home.rss", "GenK Trang chủ"),
+        ("https://genk.vn/rss/ai.rss", "GenK AI"),
         ("https://vnexpress.net/rss/so-hoa.rss", "VnExpress Số hóa")
     ]
     youth_feeds = [
@@ -223,6 +224,10 @@ def process_news_and_warnings():
     sports_feeds = [
         ("https://vnexpress.net/rss/the-thao.rss", "VnExpress Thể thao"),
         ("https://tuoitre.vn/rss/the-thao.rss", "Tuổi Trẻ Thể thao")
+    ]
+    game_feeds = [
+        ("https://gamek.vn/trang-chu.rss", "GameK Trang chủ"),
+        ("https://gamek.vn/esport.rss", "GameK Esports")
     ]
     
     # 1. Cào dữ liệu từ tất cả các nhóm RSS
@@ -245,6 +250,10 @@ def process_news_and_warnings():
     sports_items = []
     for url, source in sports_feeds:
         sports_items.extend(parse_rss_feed(url, source))
+        
+    game_items = []
+    for url, source in game_feeds:
+        game_items.extend(parse_rss_feed(url, source))
         
     # Từ khóa lọc bão & thiên tai
     priority_keywords = ["bão", "áp thấp", "lũ quét", "sạt lở", "triều cường", "mưa lớn", "ngập lụt", "lốc xoáy", "thiên tai", "lũ lụt"]
@@ -271,15 +280,17 @@ def process_news_and_warnings():
     ai_news = []
     youth_news = []
     wc_news = []
+    game_news = []
     
     seen_titles = set()
     
     # --- BƯỚC QUAN TRỌNG: THUẬT TOÁN ĐỌC & QUÉT AI TOÀN CỤC (GLOBAL AI FILTER) ---
-    # Quét trước tất cả tin từ mọi nguồn (GenK, VnExpress, Tuổi Trẻ, Thanh Niên...) để ưu tiên bài về AI
+    # Quét trước tất cả tin từ mọi nguồn (GenK, GameK, VnExpress, Tuổi Trẻ, Thanh Niên...) để ưu tiên bài về AI
     all_raw_items = [("weather", item) for item in weather_items] + \
                     [("tech", item) for item in tech_items] + \
                     [("youth", item) for item in youth_items] + \
-                    [("sports", item) for item in sports_items]
+                    [("sports", item) for item in sports_items] + \
+                    [("game", item) for item in game_items]
                     
     non_ai_items = []
     for category, item in all_raw_items:
@@ -326,20 +337,17 @@ def process_news_and_warnings():
             is_wc = any(kw in title_lower or kw in desc_lower for kw in wc_keywords)
             if is_wc:
                 wc_news.append(item)
+        elif category == "game":
+            game_news.append(item)
         
-    return priority_news, normal_weather_news, tech_news, ai_news, youth_news, wc_news
+    return priority_news, normal_weather_news, tech_news, ai_news, youth_news, wc_news, game_news
 
-def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_news, youth_news, wc_news):
+def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_news, youth_news, wc_news, game_news):
     """
     Tạo báo cáo HTML dạng Dashboard 3 cột đẹp mắt dựa trên dữ liệu thời tiết và tin tức đã thu thập
     """
     now = datetime.datetime.now()
-    # Định dạng Thứ bằng tiếng Việt
     days_vi = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"]
-    # Lưu ý: now.weekday() trả về 0-6 (Thứ 2 - CN), nhưng ta có mảng days_vi bắt đầu từ CN,
-    # nên ta dùng (now.weekday() + 1) % 7 để lấy chỉ số tương thích.
-    # Python weekday: 0 = Monday, 6 = Sunday.
-    # days_vi ở đây: 0 = CN, 1 = Thứ 2, ..., 6 = Thứ 7.
     day_idx = (now.weekday() + 1) % 7
     date_str = f"{days_vi[day_idx]}, ngày {now.day:02d} tháng {now.month:02d} năm {now.year}"
     time_str = now.strftime("%H:%M")
@@ -456,10 +464,10 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
     else:
         ai_news_html = "<p class='no-news'>Không tìm thấy cập nhật tin tức mới về AI.</p>"
 
-    # --- 5. Tạo HTML cho cột Công nghệ ---
+    # --- 5. Tạo HTML cho cột Công nghệ (GenK) ---
     tech_news_html = ""
     if tech_news:
-        for item in tech_news[:4]: # Tối đa 4 tin công nghệ khác
+        for item in tech_news[:5]: # Tối đa 5 tin công nghệ GenK/VnExpress
             img_html = f'<img src="{item["image"]}" alt="tin-anh" class="news-img-small">' if item.get("image") else ''
             tech_news_html += f"""
             <div class="news-card tech-card">
@@ -478,7 +486,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
     # --- 6. Tạo HTML cho cột Giới trẻ ---
     youth_news_html = ""
     if youth_news:
-        for item in youth_news[:4]: # Giới hạn 4 tin giới trẻ để nhường chỗ cho World Cup
+        for item in youth_news[:4]: # Giới hạn 4 tin giới trẻ
             img_html = f'<img src="{item["image"]}" alt="tin-anh" class="news-img-small">' if item.get("image") else ''
             youth_news_html += f"""
             <div class="news-card youth-card">
@@ -497,7 +505,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
     # --- 7. Tạo HTML cho cột World Cup ---
     wc_news_html = ""
     if wc_news:
-        for item in wc_news[:5]: # Tối đa 5 tin World Cup
+        for item in wc_news[:4]: # Tối đa 4 tin World Cup
             img_html = f'<img src="{item["image"]}" alt="tin-anh" class="news-img-small">' if item.get("image") else ''
             wc_news_html += f"""
             <div class="news-card wc-card">
@@ -512,6 +520,25 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
             """
     else:
         wc_news_html = "<p class='no-news'>Hiện chưa cập nhật tin tức World Cup mới.</p>"
+
+    # --- 8. Tạo HTML cho cột Game & Esports (GameK) ---
+    game_news_html = ""
+    if game_news:
+        for item in game_news[:5]: # Tối đa 5 tin GameK
+            img_html = f'<img src="{item["image"]}" alt="tin-anh" class="news-img-small">' if item.get("image") else ''
+            game_news_html += f"""
+            <div class="news-card game-card">
+                {img_html}
+                <div class="news-card-body">
+                    <span class="badge badge-game">{item['source']}</span>
+                    <h4 class="news-card-title"><a href="{item['link']}" target="_blank">{item['title']}</a></h4>
+                    <p class="news-card-desc">{item['description']}</p>
+                    <span class="news-date">📅 {item['pub_date']}</span>
+                </div>
+            </div>
+            """
+    else:
+        game_news_html = "<p class='no-news'>Không có tin tức Game/Esports mới.</p>"
 
     # Toàn bộ Template HTML/CSS phong cách Premium Dashboard 3 cột
     html_content = f"""<!DOCTYPE html>
@@ -546,6 +573,9 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
             
             --wc-gold: #eab308;
             --wc-glow: rgba(234, 179, 8, 0.12);
+            
+            --game-green: #10b981;
+            --game-glow: rgba(16, 185, 129, 0.12);
         }}
 
         * {{
@@ -670,6 +700,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
         .col-tech-title {{ color: #c7d2fe; border-color: rgba(139, 92, 246, 0.15); }}
         .col-youth-title {{ color: #fbcfe8; border-color: rgba(236, 72, 153, 0.15); }}
         .col-wc-title {{ color: #fef08a; border-color: rgba(234, 179, 8, 0.15); }}
+        .col-game-title {{ color: #6ee7b7; border-color: rgba(16, 185, 129, 0.15); }}
 
         /* Section Container Box */
         .section-box {{
@@ -907,6 +938,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
         .badge-tech {{ background: rgba(59, 130, 246, 0.12); color: #bfdbfe; border: 1px solid rgba(59, 130, 246, 0.2); }}
         .badge-youth {{ background: rgba(236, 72, 153, 0.12); color: #fbcfe8; border: 1px solid rgba(236, 72, 153, 0.2); }}
         .badge-wc {{ background: rgba(234, 179, 8, 0.15); color: #fef08a; border: 1px solid rgba(234, 179, 8, 0.25); }}
+        .badge-game {{ background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.25); }}
 
         .news-title a {{
             color: #ffffff;
@@ -1007,6 +1039,11 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
             background: linear-gradient(90deg, var(--wc-glow) 0%, rgba(30, 41, 59, 0.2) 100%);
         }}
 
+        .game-card {{
+            border-left: 3px solid var(--game-green);
+            background: linear-gradient(90deg, var(--game-glow) 0%, rgba(30, 41, 59, 0.2) 100%);
+        }}
+
         .news-img-small {{
             width: 110px;
             height: 90px;
@@ -1040,6 +1077,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
         .tech-card .news-card-title a:hover {{ color: var(--tech-cyan); }}
         .youth-card .news-card-title a:hover {{ color: var(--youth-pink); }}
         .wc-card .news-card-title a:hover {{ color: var(--wc-gold); }}
+        .game-card .news-card-title a:hover {{ color: var(--game-green); }}
 
         .news-card-desc {{
             color: var(--text-muted);
@@ -1124,13 +1162,21 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
                 </div>
             </div>
 
-            <!-- CỘT 3: WORLD CUP & GIỚI TRẺ -->
+            <!-- CỘT 3: WORLD CUP, GAMEK & GIỚI TRẺ -->
             <div class="dashboard-col col-right">
                 <!-- Chuyên mục World Cup -->
                 <div>
                     <div class="col-title-bar col-wc-title">🏆 FIFA World Cup 2026</div>
                     <div class="news-card-grid">
                         {wc_news_html}
+                    </div>
+                </div>
+
+                <!-- Chuyên mục GameK -->
+                <div>
+                    <div class="col-title-bar col-game-title">🎮 Thế giới Game & Esports (GameK)</div>
+                    <div class="news-card-grid">
+                        {game_news_html}
                     </div>
                 </div>
 
@@ -1148,7 +1194,7 @@ def build_html_report(weather_data, priority_news, weather_news, tech_news, ai_n
         <!-- Footer -->
         <footer class="footer">
             <p>Phần mềm tự động cập nhật thời tiết và tin tức hàng ngày trên macOS.</p>
-            <p>Nguồn dữ liệu: Open-Meteo API, VnExpress, Tuổi Trẻ, GenK, Thanh Niên. Hoàn thành tổng hợp lúc {time_str}.</p>
+            <p>Nguồn dữ liệu: Open-Meteo API, VnExpress, Tuổi Trẻ, GenK, GameK, Thanh Niên. Hoàn thành tổng hợp lúc {time_str}.</p>
         </footer>
     </div>
 </body>
@@ -1222,10 +1268,10 @@ def main():
         weather_results[city] = get_weather_info(city, coords["lat"], coords["lon"])
         
     # 2. Thu thập và lọc tin tức theo các nhóm chuyên mục
-    priority_news, weather_news, tech_news, ai_news, youth_news, wc_news = process_news_and_warnings()
+    priority_news, weather_news, tech_news, ai_news, youth_news, wc_news, game_news = process_news_and_warnings()
     
     # 3. Tạo bản tin HTML Dashboard 3 cột
-    build_html_report(weather_results, priority_news, weather_news, tech_news, ai_news, youth_news, wc_news)
+    build_html_report(weather_results, priority_news, weather_news, tech_news, ai_news, youth_news, wc_news, game_news)
     
     # 4. Gửi notification macOS
     has_warnings = len(priority_news) > 0

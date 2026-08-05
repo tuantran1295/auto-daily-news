@@ -11,7 +11,8 @@
 * **🚨 Cảnh báo bão & thiên tai khẩn cấp**: Cào tin cảnh báo bão, lũ lụt, mưa lớn từ NCHMF và RSS VnExpress/Tuổi Trẻ để hiển thị cảnh báo đỏ nổi bật.
 * **🏆 FIFA World Cup 2026**: Tự động cào và lọc tin tức liên quan đến World Cup 2026 từ các nguồn thể thao uy tín để đưa lên đầu Cột 3 với thiết kế Vàng Gold nổi bật.
 * **🧠 Chuyên mục AI nổi bật (Lọc Toàn cục)**: Quét ưu tiên các tin tức liên quan đến Trí tuệ nhân tạo (AI, ChatGPT, Gemini, Claude, Sora, DeepSeek, OpenAI, Nvidia...) từ **tất cả các nguồn tin tức** để hiển thị lên tới 8 bài viết mới nhất với tone màu tím neon đặc trưng.
-* **💻 Thế giới Công nghệ & GenK.vn**: Cập nhật liên tục các tin công nghệ tiêu dùng, khoa học, đời sống số từ GenK (Trang chủ, Tin ICT, Đồ chơi số) và VnExpress Số hóa.
+* **💻 Thế giới Công nghệ (GenK.vn)**: Cập nhật liên tục 60+ tin công nghệ tiêu dùng, khoa học, đời sống số mới nhất từ GenK (Trang chủ, Chuyên mục AI) và VnExpress Số hóa.
+* **🎮 Thế giới Game & Esports (GameK.vn)**: Chuyên mục mới cập nhật các tin tức game online, giải đấu Esports, gaming gear và đời sống game thủ từ GameK.
 * **✨ Nhịp sống Giới trẻ**: Tin tức xu hướng, đời sống giới trẻ Việt Nam từ báo Thanh Niên.
 * **Hiệu năng tối ưu**: Quá trình cào tin và hiển thị chỉ diễn ra trong 3-5 giây và tự động thoát hoàn toàn, không chạy nền gây tốn RAM/pin của máy Mac.
 
